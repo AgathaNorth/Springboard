@@ -1,0 +1,16 @@
+Capstone Ideas
+
+1: Localized targeted marketing: 
+https://archive.ics.uci.edu/ml/datasets/bank+marketing
+
+Using regional data to determine where best to focus in a marketing campaign, and predicting the success of said campaign, can be a very effective means for companies, banks, and political parties to determine where their energy and resources are best used in local situations. Improving and understanding the collection of and use of such data can help these groups in future efforts.
+
+2: Predicting employee attrition:
+https://www.kaggle.com/harriken/employeeturnover
+
+Employee turnover is something that all companies could benefit from having a greater understanding. Predicting and preventing unwanted churning in the workplace could theoretically help a company grow and maintain it's best human resources. Because of how universal the issue is, it's something that has boundless applications, but strengthing a business longterm is the most obvious.
+
+3: Analysis on the US election's widespread effects in other global elections:
+https://www.kaggle.com/daliaresearch/trump-effect
+
+Love him or hate him, Donald Trump's victory has been a facinating sociological event. Several other political figures have sprung up, particularly in Europe, that seem to be channeling the same values, such as Marine Le Pen in France, Nigel Farage in England, or the Netherland's Geert Wilders. Following this recent surge and analyzing it's demographic may help predict similar political movements in other parts of the world. 
