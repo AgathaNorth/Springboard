@@ -1,0 +1,60 @@
+---
+title: "Capstone Proposal"
+author: "Agatha North"
+date: "October 17, 2017"
+output: html_document
+---
+
+The Goal of this project is to examine and better understand the nature of employee attrition within a company or organization. What are the observable factors that can be used to predict if a valued employee may seek employment elsewhere? What factors play into overall employee happiness?
+
+1. What is the problem you want to solve?
+
+High performance jobs tend to have stress related turn overs, but when companies lose employees that are performing well it may have been avoidable. My goal is to see if monitoring certain factors, such as overall happiness, work place comradery, productivity, and similarly observable aspects of a work place can help companies retain their valued employees.
+
+2. Who is your client and why do they care about this problem?
+
+The beautiful part of this project is how universally it can be applied. Any company or organization with a vested interest in maintaining their best employees and having a general idea of the workplace moral can take advantage of this knowledge. Furthermore it may even help them decide who deserves more attention and opportunity within the company. It should generally be best practice to try and maintain the best possible work environment, and this analysis should prove helpful in fostering that kind of thought.
+
+3. What data are you going to use for this? How will you acquire this data?
+
+Anonymous data taken from companies that used the Daily Happiness app. This includes; churn data, employee comments, employee likes/dislikes, and self reported happiness votes.
+
+4. In brief, ouline your approach to solving this problem (knowing that this might change later).
+
+	A. Understanding the Nature of Attrition in the Workplace - What are the most important factors that go into an employee quitting or being fired? Which of these factors can be quantified and collected as data in your average workplace? How can these factors be influenced in a positive way? In attempting to positively effect employee attrition it is important to understand why it happens.
+
+	B. Understanding the Data - The app used to collect all the data uses several significant elements. The question is, which of these factors are most significant. The questions that I hope to answer with this project are; How many users that were actively engaged by the App, either with frequent comments or likes/dislikes, churned? Was negative user engagement, lots of dislikes and low mood votes, a significant factor for churning? What was the most common trend between users that did churn?
+	
+	C. Preparing the Data - After cleaning and working on the dataset I intend to run it through a Random Forest process to determine the answers to my questions.
+
+	D. Analysis and Conclusions - The results of my analysis will be written up and any conclusions that are drawn will be detailed upon.
+
+
+5. What are your deliverables? Typically, this would include code, along with a paper and/or a slide deck.
+
+The deliverables for this project will be the code, key findings, visual representations, and all final conclusions drawn by the analysis. This will all be submitted to github.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
