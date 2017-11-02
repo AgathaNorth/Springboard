@@ -1,0 +1,9 @@
+Cleaning the data
+
+As all projects begin, I loaded in the necessary tools and read in the datasets. I named the four sets votes, churn, comments, and interaction. Votes refers to the individuals vote of 1-4 on their self reported happiness for the day. Churn refers to who in the company has, as you may guess, churned. Comments shows the employee and company that corrispond to specific comments made within the app, and how well they were received (if they were liked, disliked, and how many of each). Lastly the interaction set goes into who the specific employees were that liked or disliked specific comments within the app.
+
+Step one was to fix all of the dates, changing them into the proper date category and making them more succinct. The dates in three of the datasets (churn, votes, and comments) needed to be altered, so I used gsub to remove all instances of CET and CEST, and then altered the format with parse_date_time to make them uniform.
+
+The second step was to make the company alias a legible section of the data, instead of a bloated string of numbers and letters. I decided to simplify them down to C, for company, followed by a number, to create C1-C37.
+
+Lastly I altered the name of one column within churn to shorten and simplify. 
