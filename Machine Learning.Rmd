@@ -1,0 +1,96 @@
+---
+title: "Machine Learning"
+author: "Agatha North"
+date: "December 3, 2017"
+output: html_document
+---
+
+```{r include=FALSE}
+library(tidyverse)
+library(lubridate)
+library(randomForest)
+library(caTools)
+library(plotly)
+library(rfUtilities)
+```
+
+```{r include=FALSE}
+load("myData.RData")
+```
+
+#Machine Learning
+
+After a discussion with my Mentor, we settled on using randomForest as the technique for this data. The data set isn't enormous so the ability to stratify the data and perform cross validation was important, but also we wanted to ensure that we used a technique that was not already attempted on the data and availible on Kaggle.
+
+```{r warning=FALSE}
+#Split the Data
+
+EmpCombMod <- dplyr::select(EmpCombined, -EmpID, -lastPostDate)
+
+set.seed(237)
+split <- sample.split(EmpCombMod, SplitRatio = 0.75)
+EmpCom_train <- EmpCombMod[split,]
+EmpCom_test <- EmpCombMod[!split,]
+
+
+model1 <- randomForest(stillExists ~ ., data=EmpCom_train,
+                      ntree=500,
+                      mtry=2,
+                      importance=TRUE,
+                      na.action=na.roughfix,
+                      replace=FALSE)
+model1
+
+outcome <- predict(model1, EmpCom_test)
+table(EmpCom_test$stillExists,outcome, dnn=c("Actual", "Predicted"))
+
+```
+This is the initial model, and clearly it was not as effective as desired. The variables that were settled on by this point were; voteCount (the number of votes for each individual from each company), MeanVote (the average vote between 1 and 4 for each individual), AvgLength (the average length of comments posted by each individual), AvgLikes (the average number of likes the individual gave to comments within their company), and AvgDislikes (the average number of dislikes the individual gave to comments within their company). Up in the air however, was companyAlias as a predictive variable. Arguably it should remain because it helped select based on whether churning within a company was more or less frequent, but it also had a strong influence on the data and made over sampling an issue.
+
+```{r echo=TRUE}
+rn <- round(importance(model1), 2)
+rn[order(rn[,3], decreasing=TRUE),]
+
+varImpPlot(model1, main="")
+
+
+Emp_trainx <- dplyr::select(EmpCom_train, -stillExists)
+result <- rfcv(Emp_trainx, EmpCom_train$stillExists, cv.fold=10)
+with(result, plot(n.var, error.cv, log="x", type="o", lwd=2))
+
+
+model2 <- randomForest(stillExists ~ ., data=EmpCom_train,
+                          ntree=4000,
+                          sampsize=c(500,500),
+                          strata=EmpCom_train$stillExists,
+                          mtry=2,
+                          importance=TRUE,
+                          na.action=na.roughfix,
+                          replace=FALSE)
+model2
+
+rn <- round(importance(model2), 2)
+rn[order(rn[,3], decreasing=TRUE),]
+
+varImpPlot(model2, main="")
+```
+
+Moving forward, I attempted to stratify the data to increase the prevalence of the rare false result of stillExists. This was even less effective, but I learned some important information and tuned accordingly
+```{r echo=TRUE}
+model3 <- randomForest(stillExists ~ companyAlias + MeanVote + VoteCount + AvgLikes, data=EmpCom_train,
+                    ntree=4000,
+                    sampsize=c(20,1000),
+                    strata=EmpCom_train$stillExists,
+                    mtry=2,
+                    importance=TRUE,
+                    na.action=na.roughfix,
+                    replace=FALSE)
+model3
+
+rn <- round(importance(model3), 2)
+rn[order(rn[,3], decreasing=TRUE),]
+
+varImpPlot(model3, main="")
+```
+
+Overall a bit better than previous iterations, but still far from the predictive power desired. Moving into the final leg of the project I know I needed to make significant improvements to the model. I intend to attempt a more effective means of stratifying the data going foward, but I may switch to classwt if it proves ineffective,
