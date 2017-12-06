@@ -1,0 +1,207 @@
+---
+title: "Capstone"
+author: "Agatha North"
+date: "December 3, 2017"
+output: html_document
+---
+
+
+```{r include=FALSE}
+library(tidyverse)
+library(lubridate)
+library(randomForest)
+library(caTools)
+library(plotly)
+library(rfUtilities)
+```
+
+```{r include=FALSE}
+load("myData.RData")
+```
+
+
+# Employee Attrition
+
+
+## An Under Recognized Problem
+
+Workplace attrition is a universal factor in any form of employment. Attrition has many forms, both voluntary and involuntary, and its effects on a business can be felt both fiscally and within the workplace community. Because even valued employees are affected by attrition it is often viewed as a necessary evil in the workplace, something that is outside individual control.
+
+Employee morale tends to be the biggest loss when attrition is concerned. After all, no one likes being fired, no one enjoys seeing their friends and co-workers being let go, and no one wants to train their friends’ replacement. At the same time, businesses don’t want their best workers leaving to seek opportunity elsewhere. Skilled workers can be considered a commodity like any other. The investment that goes into them; the hours of training, the workplace efficiency that familiarity helps foster, and the saved expenses on training, interviewing, and advertising, are all significant factors that companies need to consider. New hires mean risk where reliable and experienced employees can be considered stable.
+
+Preventing unnecessary attrition in the workplace is an effective means of reducing expenses, and increasing employee engagement. Finding sustainable and realistic ways to increase employee satisfaction is something most companies can benefit and learn from.
+
+
+## The Data
+
+This analysis is possible due to 37 anonymous companies that used the company feedback app Happyforce (found at https://www.myhappyforce.com/en/). These companies provided their data for this set, which was then broken down into 4 dataframes. This includes churn data, employee comments, employee likes/dislikes, and self reported happiness votes. The dataset can be found at: https://www.kaggle.com/harriken/employeeturnover
+
+## Data Wrangling
+
+Cleaning this data was relatively simple. The data is straightforward in its purpose and format, so the chief concerns in cleaning it were to make the dataframes with the same variables match, to increase term clarity, and to simplify the dates. 
+
+My code:
+
+```{r eval=FALSE}
+
+votes$voteDate <- gsub("CET","",votes$voteDate)
+votes$voteDate <- gsub("CEST","",votes$voteDate)
+votes$voteDate <- gsub("  "," ",votes$voteDate)
+votes$voteDate <- parse_date_time(votes$voteDate, "%a %b %d %H:%M:%S %Y")
+
+churn$lastParticipationDate <- gsub("CET","",churn$lastParticipationDate)
+churn$lastParticipationDate <- gsub("CEST","",churn$lastParticipationDate)
+churn$lastParticipationDate <- gsub("  "," ",churn$lastParticipationDate)
+churn$lastParticipationDate <- parse_date_time(churn$lastParticipationDate, "%a %b %d %H:%M:%S %Y")
+  
+comments$commentDate <- gsub("CET","",comments$commentDate)
+comments$commentDate <- gsub("CEST","",comments$commentDate)
+comments$commentDate <- gsub("  "," ",comments$commentDate)
+comments$commentDate <- parse_date_time(comments$commentDate, "%a %b %d %H:%M:%S %Y")
+
+levels(votes$companyAlias) <- c("C1","C2","C3","C4","C5","C6","C7","C8","C9","C10","C11","C12","C13","C14","C15","C16","C17","C18","C19","C20","C21","C22","C23","C24","C25","C26","C27","C28","C29","C30","C31","C32","C33","C34","C35","C36","C37")
+levels(churn$companyAlias) <- c("C1","C2","C3","C4","C5","C6","C7","C8","C9","C10","C11","C12","C13","C14","C15","C16","C17","C18","C19","C20","C21","C22","C23","C24","C25","C26","C27","C28","C29","C30","C31","C32","C33","C34","C35","C36","C37")
+levels(comments$companyAlias) <- c("C1","C2","C3","C4","C5","C6","C7","C8","C9","C10","C11","C12","C13","C14","C15","C16","C17","C18","C19","C20","C21","C22","C23","C24","C25","C26","C27","C28","C29","C30","C31","C32","C33","C34","C35","C36")
+levels(interaction$companyAlias) <- c("C1","C2","C3","C4","C5","C6","C7","C8","C9","C10","C11","C12","C13","C14","C15","C16","C17","C18","C19","C20","C21","C22","C23","C24","C25","C26","C27","C28","C29","C30","C31","C32","C33","C34","C35")
+
+colnames(churn)[4] <- c("lastPostDate")
+
+votes$EmpID <- paste0(votes$employee, votes$companyAlias)
+comments$EmpID <- paste0(comments$employee, comments$companyAlias)
+interaction$EmpID <- paste0(interaction$employee, interaction$companyAlias)
+churn$EmpID <- paste0(churn$employee, churn$companyAlias)
+
+comments$txt <- as.character(comments$txt)
+comments$LengthTxt <- nchar(comments$txt)
+
+EmpVoteCount <- votes%>%group_by(EmpID)%>%dplyr::summarize(VoteCount=n(),
+                                                          MeanVote=mean(vote))
+
+EmpComments <- comments%>%group_by(EmpID)%>%dplyr::summarize(AvgLength=mean(LengthTxt),
+                                                                 AvgLikes=mean(likes),
+                                                                 AvgDislikes=mean(dislikes))
+
+EmpCombined <- left_join(EmpVoteCount,EmpComments)
+
+EmpCombined[is.na(EmpCombined)] <- 0
+
+churn <- churn%>%dplyr::select(EmpID, stillExists, companyAlias)
+EmpCombined <- left_join(EmpCombined,churn)
+```
+
+To get the code into the state it needed to be in for analysis and machine learning I created a new frame with individual employees and their personal stats.
+
+## Exploration of the Data
+
+When digging into the data certain things quickly became apparent. First and foremost was that the size of the companies involved in the data varied, and as a result, the volume of their votes, likes, dislikes, comments, and other data of relevance. 
+
+```{r echo=TRUE}
+ggplot(votes, aes(vote, fill = companyAlias)) + geom_bar() + facet_grid(~ votes$companyAlias) + labs(title = "Votes by Company")
+
+```
+
+Some things to note from the plot above, companies 2 and 12 are particularly happy, with the strong majority of their votes marked as 4. Companies 1, 23, and 31 also stand out in terms of overall happiness compared to unhappiness. On the otherhand company 23 stands out as the most evenly distributed between negative and positve votes, which incidentally also makes it the least happy of the batch.
+
+```{r echo=TRUE}
+ggplot(comments, aes(likes, fill = companyAlias)) + geom_histogram(binwidth = 1) + labs(title ="Likes by Company")
+```
+```{r echo=TRUE}
+ggplot(comments, aes(dislikes, fill = companyAlias)) + geom_histogram(binwidth = 1) + labs(title = "Dislikes by Company")
+```
+It was far more common for comments to receive likes than dislikes in every company. These slopes were overall unsurpising.
+
+```{r echo=TRUE}
+ggplot(EmpCombined, aes(EmpID, col = stillExists, x = MeanVote, y = VoteCount)) + geom_point(position = "jitter", alpha=0.6)
+```
+Investigating the individual votes when compared to how often an employee voted was quite fruitful. The distribution of votes for those who churned was extremely even across the mean vote, but the density of all votes trended towards the higher end. However, I did not expect to see individuals who's mean vote was roughly 1 have anywhere near the same vote count as individuals with a higher level of day to day happiness. Clearly day to day happiness wasn't all that strong of an indicator on its own, which proved useful later. It's facinating to think that there were some individuals who publically voted their unhappiness for over half a year and still remained at their company. 
+
+```{r echo=TRUE}
+ggplot(EmpCombined, aes(EmpID, col = stillExists, x=VoteCount, y=AvgLength)) + geom_point(position = "jitter", alpha=0.4)
+```
+
+```{r echo=TRUE}
+ggplot(EmpCombined, aes(EmpID, col = stillExists, x=VoteCount, y=AvgDislikes)) + geom_point(position = "jitter", alpha=0.4)
+```
+
+```{r echo=TRUE}
+ggplot(EmpCombined, aes(EmpID, col = stillExists, x=VoteCount, y=AvgLikes)) + geom_point(position = "jitter", alpha=0.4)
+```
+
+Looking at the average length, average dislikes, and average likes of individuals compared to their vote count, it's immediately clear that these three elements of engagement were strong indicators of investment in the app, if not the company as well. Interestingly there were few employees that seemed to be engaged by both the votes and also the comments.
+
+## Random Forest
+
+```{r warning=FALSE}
+#Split the Data
+
+EmpCombMod <- dplyr::select(EmpCombined, -EmpID, -lastPostDate)
+
+set.seed(237)
+split <- sample.split(EmpCombMod, SplitRatio = 0.75)
+EmpCom_train <- EmpCombMod[split,]
+EmpCom_test <- EmpCombMod[!split,]
+
+
+model1 <- randomForest(stillExists ~ ., data=EmpCom_train,
+                      ntree=500,
+                      mtry=2,
+                      importance=TRUE,
+                      na.action=na.roughfix,
+                      replace=FALSE)
+model1
+
+outcome <- predict(model1, EmpCom_test)
+table(EmpCom_test$stillExists,outcome, dnn=c("Actual", "Predicted"))
+
+```
+This is the initial model, and clearly it was not as effective as desired. The variables that were settled on by this point were; voteCount (the number of votes for each individual from each company), MeanVote (the average vote between 1 and 4 for each individual), AvgLength (the average length of comments posted by each individual), AvgLikes (the average number of likes the individual gave to comments within their company), and AvgDislikes (the average number of dislikes the individual gave to comments within their company). Up in the air however, was companyAlias as a predictive variable. Arguably it should remain because it helped select based on whether churning within a company was more or less frequent, but it also had a strong influence on the data and made over sampling an issue.
+
+```{r echo=TRUE}
+rn <- round(importance(model1), 2)
+rn[order(rn[,3], decreasing=TRUE),]
+
+varImpPlot(model1, main="")
+
+
+Emp_trainx <- dplyr::select(EmpCom_train, -stillExists)
+result <- rfcv(Emp_trainx, EmpCom_train$stillExists, cv.fold=10)
+with(result, plot(n.var, error.cv, log="x", type="o", lwd=2))
+
+
+model2 <- randomForest(stillExists ~ ., data=EmpCom_train,
+                          ntree=4000,
+                          sampsize=c(500,500),
+                          strata=EmpCom_train$stillExists,
+                          mtry=2,
+                          importance=TRUE,
+                          na.action=na.roughfix,
+                          replace=FALSE)
+model2
+
+rn <- round(importance(model2), 2)
+rn[order(rn[,3], decreasing=TRUE),]
+
+varImpPlot(model2, main="")
+```
+
+Moving forward, I attempted to stratify the data to increase the prevalence of the rare false result of stillExists. This was even less effective, but I learned some important information and tuned accordingly
+```{r echo=TRUE}
+model3 <- randomForest(stillExists ~ companyAlias + MeanVote + VoteCount + AvgLikes, data=EmpCom_train,
+                    ntree=4000,
+                    sampsize=c(20,1000),
+                    strata=EmpCom_train$stillExists,
+                    mtry=2,
+                    importance=TRUE,
+                    na.action=na.roughfix,
+                    replace=FALSE)
+model3
+
+rn <- round(importance(model3), 2)
+rn[order(rn[,3], decreasing=TRUE),]
+
+varImpPlot(model3, main="")
+```
+
+## Questions
+
+## Conclusions and Recommendations for Next Steps
