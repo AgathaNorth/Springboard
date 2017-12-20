@@ -3,8 +3,11 @@ library(lubridate)
 library(randomForest)
 library(caTools)
 library(plotly)
-library(rfUtilities)
-
+library(ROSE)
+library(caret)
+library(caretEnsemble)
+library(pROC)
+library(gbm)
 
 #Questions for the data;
 #1: How many users that were actively engaged by the App, either with frequent comments or likes/dislikes, churned?
@@ -14,10 +17,10 @@ library(rfUtilities)
 
 #Read Data
 
-votes <- read.csv("DHAD/votes.csv")
-churn <- read.csv("DHAD/churn.csv")
-comments <- read.csv("DHAD/comments_clean_anonimized.csv")
-interaction <- read.csv("DHAD/commentInteractions.csv")
+votes <- read.csv("votes.csv")
+churn <- read.csv("churn.csv")
+comments <- read.csv("comments_clean_anonimized.csv")
+interaction <- read.csv("commentInteractions.csv")
 
 #Clean Dates
 
@@ -47,6 +50,49 @@ levels(interaction$companyAlias) <- c("C1","C2","C3","C4","C5","C6","C7","C8","C
 
 colnames(churn)[4] <- c("lastPostDate")
 
+#Checking companies for low-engagement
+
+table(votes$companyAlias)
+
+#Ultimately decided to remove all of the companies with less than 100 votes 
+
+votes <- votes %>% group_by(companyAlias) %>% filter(n() >= 100)
+
+#Using votes as a reference, remove companies from other sets
+
+churn <- churn[churn$companyAlias!="C3",]
+churn <- churn[churn$companyAlias!="C8",]
+churn <- churn[churn$companyAlias!="C11",]
+churn <- churn[churn$companyAlias!="C15",]
+churn <- churn[churn$companyAlias!="C28",]
+churn <- churn[churn$companyAlias!="C29",]
+churn <- churn[churn$companyAlias!="C34",]
+churn <- churn[churn$companyAlias!="C36",]
+churn <- churn[churn$companyAlias!="C37",]
+churn <- droplevels(churn)
+
+comments <- comments[comments$companyAlias!="C3",]
+comments <- comments[comments$companyAlias!="C8",]
+comments <- comments[comments$companyAlias!="C11",]
+comments <- comments[comments$companyAlias!="C15",]
+comments <- comments[comments$companyAlias!="C28",]
+comments <- comments[comments$companyAlias!="C29",]
+comments <- comments[comments$companyAlias!="C34",]
+comments <- comments[comments$companyAlias!="C36",]
+comments <- comments[comments$companyAlias!="C37",]
+comments <- droplevels(comments)
+
+interaction <- interaction[interaction$companyAlias!="C3",]
+interaction <- interaction[interaction$companyAlias!="C8",]
+interaction <- interaction[interaction$companyAlias!="C11",]
+interaction <- interaction[interaction$companyAlias!="C15",]
+interaction <- interaction[interaction$companyAlias!="C28",]
+interaction <- interaction[interaction$companyAlias!="C29",]
+interaction <- interaction[interaction$companyAlias!="C34",]
+interaction <- interaction[interaction$companyAlias!="C36",]
+interaction <- interaction[interaction$companyAlias!="C37",]
+interaction <- droplevels(interaction)
+
 #Group individual employee information
 
 votes$EmpID <- paste0(votes$employee, votes$companyAlias)
@@ -56,6 +102,8 @@ churn$EmpID <- paste0(churn$employee, churn$companyAlias)
 
 comments$txt <- as.character(comments$txt)
 comments$LengthTxt <- nchar(comments$txt)
+
+
 
 EmpVoteCount <- votes%>%group_by(EmpID)%>%dplyr::summarize(VoteCount=n(),
                                                           MeanVote=mean(vote))
@@ -98,14 +146,9 @@ ggplot(EmpCombined, aes(EmpID, col = stillExists, x=VoteCount, y=AvgLikes)) + ge
 #seems to relate to less churning overall. 
 
 
-
-#find most active day of the week, most active month
-
-
-
 #Split the Data
 
-EmpCombMod <- dplyr::select(EmpCombined, -EmpID, -lastPostDate)
+EmpCombMod <- dplyr::select(EmpCombined, -EmpID)
 
 set.seed(237)
 split <- sample.split(EmpCombMod, SplitRatio = 0.75)
@@ -124,45 +167,93 @@ model1
 outcome <- predict(model1, EmpCom_test)
 table(EmpCom_test$stillExists,outcome, dnn=c("Actual", "Predicted"))
 
-
 rn <- round(importance(model1), 2)
 rn[order(rn[,3], decreasing=TRUE),]
 
-varImpPlot(model1, main="")
+varImpPlot(model1)
 
+#ROSE to help with the unbalanced data
 
-Emp_trainx <- dplyr::select(EmpCom_train, -stillExists)
-result <- rfcv(Emp_trainx, EmpCom_train$stillExists, cv.fold=10)
-with(result, plot(n.var, error.cv, log="x", type="o", lwd=2))
+#over sampling
+data_balanced_over <- ovun.sample(stillExists ~ ., data = EmpCom_train, method = "over",N = 5020, seed=237)$data
+table(data_balanced_over$stillExists)
 
+#under sampling
+data_balanced_under <- ovun.sample(stillExists ~ ., data = EmpCom_train, method = "under", N = 1062, seed=237)$data
+table(data_balanced_under$stillExists)
 
-model2 <- randomForest(stillExists ~ ., data=EmpCom_train,
-                          ntree=4000,
-                          sampsize=c(500,500),
-                          strata=EmpCom_train$stillExists,
+#Using ROSE
+data_rose <- ROSE(stillExists ~., data=EmpCom_train,seed=237)$data
+table(data_rose$stillExists)
+
+modelrose <- randomForest(stillExists ~., data=data_rose,
+                          ntree=1000,
                           mtry=2,
                           importance=TRUE,
                           na.action=na.roughfix,
                           replace=FALSE)
-model2
 
-rn <- round(importance(model2), 2)
-rn[order(rn[,3], decreasing=TRUE),]
+modelrose
 
-varImpPlot(model2, main="")
+predict.rose <- predict(modelrose,EmpCom_test)
+table(EmpCom_test$stillExists,predict.rose, dnn=c("Actual", "Predicted"))
 
-model3 <- randomForest(stillExists ~ companyAlias + MeanVote + VoteCount + AvgLikes, data=EmpCom_train,
-                       ntree=4000,
-                       sampsize=c(5,100),
-                       strata=EmpCom_train$stillExists,
-                       mtry=2,
-                       importance=TRUE,
-                       na.action=na.roughfix,
-                       replace=FALSE)
-model3
+RoseAuc <- roc(EmpCom_test$stillExists, predict.rose)
 
-rn <- round(importance(model3), 2)
-rn[order(rn[,3], decreasing=TRUE),]
+varImpPlot(modelrose)
 
-varImpPlot(model3, main="")
+#Stacking to improve the model further
 
+data_rosestack <- ROSE(stillExists ~., data=EmpCombMod,seed=237)$data
+table(data_rosestack$stillExists)
+
+#Split the data 3 ways
+
+data_rosestack$stillExists <- ifelse(data_rosestack$stillExists=='true',1,0)
+
+splitStack <- sample.split(data_rosestack, SplitRatio = 0.67)
+StackS <- data_rosestack[splitStack,]
+testingData <- data_rosestack[!splitStack,]
+
+split2 <- sample.split(StackS, SplitRatio = 0.50)
+ensembleData <- StackS[split2,]
+blenderData <- StackS[!split2,]
+
+#Seperate the outcome from the predictors
+
+labelName <- 'stillExists'
+predictors <- names(ensembleData)[names(ensembleData)!=labelName]
+
+myControl <- trainControl(method='cv', number=5, returnResamp='none')
+
+testSplitModel <- train(blenderData[,predictors], blenderData[,labelName], method='gbm', trControl=myControl)
+
+model_gbm <- train(ensembleData[,predictors], ensembleData[,labelName], method='gbm', trControl=myControl)
+
+model_rpart <- train(ensembleData[,predictors], ensembleData[,labelName], method='rpart', trControl=myControl)
+
+model_rf <- train(ensembleData[,predictors], ensembleData[,labelName], method='rf', trControl=myControl)
+
+#test against other sets
+
+blenderData$gbm_PROB <- predict(object=model_gbm, blenderData[,predictors])
+blenderData$rpart_PROB <- predict(object=model_rpart, blenderData[,predictors])
+blenderData$rf_PROB <- predict(object=model_rf, blenderData[,predictors])
+
+testingData$gbm_PROB <- predict(object=model_gbm, testingData[,predictors])
+testingData$rpart_PROB <- predict(object=model_rpart, testingData[,predictors])
+testingData$rf_PROB <- predict(object=model_rf, testingData[,predictors])
+
+#train final blended model
+
+predictors <- names(blenderData)[names(blenderData) != labelName]
+final_blender_model <- train(blenderData[,predictors], blenderData[,labelName], method='rf', trControl=myControl)
+
+#Result of ROSE + Stacking
+
+predictions <- predict(object=final_blender_model, testingData[,predictors])
+
+StackAuc <- roc(testingData[,labelName], predictions)
+print(StackAuc$auc)
+
+#improvement from <80% to 88%

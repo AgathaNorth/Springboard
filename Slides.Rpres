@@ -1,0 +1,96 @@
+<style>
+.exclaim .reveal .state-background {
+  background: grey;
+} 
+.section .reveal .state-background {
+    background: grey;}
+.section .reveal h1 {
+  color: black;
+    position: relative;
+}
+.section .reveal p {
+    color: white;
+    position: relative;
+    top: 4%;}
+
+.exclaim .reveal h1,
+.exclaim .reveal h2,
+.exclaim .reveal p {
+  color: white;
+}
+</style>
+
+
+Predicting Employee Attrition in the Workplace
+========================================================
+author: Agatha North
+date: 12/03/2017
+autosize: true
+css: custom.css
+type: exclaim
+
+Overview
+========================================================
+type: exclaim
+
+- High employee attrition is both costly and inefficent
+
+- Using the App Happyforce to collect data allows predictive measures to anticipate and ideally prevent the loss of valuable employees
+
+- The data, although valuable, may be less practical than companies using more corperate and readily accessable data from within
+
+Data Wrangling
+========================================================
+type: exclaim
+
+Data wrangling was broken down into three sections
+- Cleaning the dates and assigning the companies a unique id
+
+- Scrutinizing the data to determine which companies needed to be removed
+
+- Creating a new dataset that organized the data into variables about specific employees, rather than companies
+
+Statistical Analysis
+========================================================
+type: exclaim
+
+![alt text](RplotComp.png)
+***
+Each company has its own culture, and some of this is reflected in their votes. Comparing C12 and C33 for example, gives the impression of two very different workplaces. This data was extremely helpful in predicting churning, based simply around representing the company's unique culture and firing policy.
+
+Individual Votes
+========================================================
+type: exclaim
+
+![alt text](RplotVote.png)
+***
+Interestingly, the distribution of red, churned, employees throughout this plot are fairly even.
+
+Challenges
+========================================================
+type: exclaim
+
+Moving on to the machine learning process, there was a significant challenge in improving the model to be sufficently accurate.
+- Low predictive variable count
+
+- Data from multiple companies instead of a single company
+
+Solutions
+========================================================
+type: exclaim
+
+- Stratification
+
+- ROSE
+
+- Stacking
+
+Final Points
+========================================================
+type: exclaim
+
+- Improvements from 50% to 80% to 88% based on methods used to accomodate for the under represented class
+
+- This data serves as an interesting look at a workplace culture in numeric form, which is the most powerful predictive variable for this topic
+
+- While successful in its intent, it is important to seek more realistic, company specific forms of data to proceed with further analysis
